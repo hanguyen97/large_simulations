@@ -1,0 +1,4466 @@
+
+R version 4.0.5 (2021-03-31) -- "Shake and Throw"
+Copyright (C) 2021 The R Foundation for Statistical Computing
+Platform: x86_64-pc-linux-gnu (64-bit)
+
+R is free software and comes with ABSOLUTELY NO WARRANTY.
+You are welcome to redistribute it under certain conditions.
+Type 'license()' or 'licence()' for distribution details.
+
+  Natural language support but running in an English locale
+
+R is a collaborative project with many contributors.
+Type 'contributors()' for more information and
+'citation()' on how to cite R or R packages in publications.
+
+Type 'demo()' for some demos, 'help()' for on-line help, or
+'help.start()' for an HTML browser interface to help.
+Type 'q()' to quit R.
+
+[Previously saved workspace restored]
+
+> library(foreach)
+> library(doMC)
+Loading required package: iterators
+Loading required package: parallel
+> registerDoMC(40)
+> options(cores = 40)
+> 
+> # Load data
+> setwd("~/ATTglasso/")
+> load("out/DGP.RData")
+> R <- 20
+> 
+> for (i in 10:nrow(dgp.df)) {
++   graph.type <- dgp.df[i, ]$graph.type
++   graph.param <- dgp.df[i, ]$graph.param
++   p <- dgp.df[i, ]$p
++   n <- dgp.df[i, ]$n
++   same.diag <- dgp.df[i, ]$same.diag
++   
++   print(paste(i, graph.type, graph.param, p, n, same.diag, R))
++   data.name <- paste0(graph.type, graph.param, 
++                       "_p", p, "_n", n, "_diag", same.diag, "_R", R )
++ 
++   load(paste0("out/", data.name, "_data.RData"))
++   
++   R <- 20
++   lower = -13
++   upper = 3
++   lambda.grid <- 2^seq(upper, lower, by = -0.1); l <- length(lambda.grid)
++   
++   # Run glasso at each lambda values
++   startT <- Sys.time()
++   total.arr = foreach(r = 1:R, .combine = cbind) %dopar% {
++     
++     source("library_test.R")
++     library(glasso)
++     
++     Theta <- Theta_list[[r]]
++     X <- X_list[[r]]
++     
++     rmse.arr.glasso = bic.arr.glasso = aic.arr.glasso = array(NA, l) 
++     auroc.arr.glasso = array(NA, l)
++     
++     flag <- 0
++     
++     for(i in 1:l){
++       # Estimate
++       lambda <- lambda.grid[i]
++       # print(paste("start of", i, "-th exp for", r,"-th rep, ", log2(lambda)))
++       
++       Theta.hat.glasso <- glasso(s=cov(X),rho=lambda)$wi
++       
++       if(any(is.na(Theta.hat.glasso))){
++         rmse.arr.glasso[i] = auroc.arr.glasso[i] = NA
++       } else {
++         rmse.arr.glasso[i]<- rel.diff(Theta.hat.glasso, Theta)
++         auroc.arr.glasso[i] = ROC.Theta(Theta.hat.glasso, Theta)$auc
++       }
++       
++       i.best <- 0
++       if(i==1){
++         Theta.hat.best <- Theta.hat.glasso
++         start.rmse <- rmse.arr.glasso[i]
++         min.rmse <- NULL
++         i.best <- i
++       }
++       
++       if(!is.na(rmse.arr.glasso[i])){
++         # now.bic <- bic.arr.glasso[i]
++         now.rmse <- rmse.arr.glasso[i]
++         min.rmse <- min(min.rmse, now.rmse)
++         if(min.rmse >= now.rmse){
++           i.best <- i
++           Theta.hat.best <- Theta.hat.glasso
++         }
++         
++         if(now.rmse > min.rmse && now.rmse - min.rmse >= 0.4 * (start.rmse - min.rmse))
++           flag <- 1
++       }
++       if(flag == 1)
++         break
++       
++       # print(paste("end of", i, "-th exp for", r,"-th rep,", log2(lambda)))
++     }
++     temp <- data.frame(c(rmse.arr.glasso, 
++                          auroc.arr.glasso
++     )) # , rmse.arr.clime
++     
++     # save(temp, file = paste0("total", r, ".RData"))
++     temp
++   }
++   print(Sys.time() - startT)
++   
++   # Save output
++   metrics <- c(rep("rmse", l), rep("auroc", l))
++   total.arr <- cbind(metrics, log2(lambda.grid), total.arr)
++   colnames(total.arr) <- c("metric", "log_lambda", paste0("rep", 1:R))
++   save(total.arr, lambda.grid, l, file=paste0("out/", data.name, "_total.arr.RData"))
++   
++ }
+[1] "10 band 2 100 50 0 20"
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+Loading required package: lpSolve
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+Loading required package: lpSolve
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+Loading required package: lpSolve
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+Loading required package: lpSolve
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Time difference of 4.9778 secs
+[1] "11 band 2 100 100 0 20"
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+
+Attaching package: ‘gdata’
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+Loading required package: lpSolve
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+Loading required package: lpSolve
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+Loading required package: lpSolve
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Time difference of 5.19093 secs
+[1] "12 band 2 100 200 0 20"
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+Loading required package: lpSolve
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+Loading required package: lpSolve
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+Loading required package: lpSolve
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+Loading required package: lpSolve
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Time difference of 6.028101 secs
+[1] "13 band 2 200 100 0 20"
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+Loading required package: lpSolve
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+Loading required package: lpSolve
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+Loading required package: lpSolve
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Time difference of 26.94376 secs
+[1] "14 band 2 200 200 0 20"
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+Loading required package: lpSolve
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+Loading required package: lpSolve
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+Loading required package: lpSolve
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+Loading required package: lpSolve
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Time difference of 29.15475 secs
+[1] "15 band 2 200 400 0 20"
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+Loading required package: lpSolve
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+Loading required package: lpSolve
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+Loading required package: lpSolve
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+Loading required package: lpSolve
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+Loading required package: lpSolve
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Time difference of 35.894 secs
+[1] "16 band 2 400 200 0 20"
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+Loading required package: lpSolve
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+Loading required package: lpSolve
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+Loading required package: lpSolve
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+Loading required package: lpSolve
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Time difference of 3.622041 mins
+[1] "17 band 2 400 400 0 20"
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+Loading required package: lpSolve
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+Loading required package: lpSolve
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Time difference of 4.165706 mins
+[1] "18 band 2 400 800 0 20"
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+Type 'citation("pROC")' for a citation.
+Type 'citation("pROC")' for a citation.
+
+Attaching package: ‘pROC’
+
+Type 'citation("pROC")' for a citation.
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘pROC’
+
+
+Attaching package: ‘pROC’
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+The following objects are masked from ‘package:stats’:
+
+    cov, smooth, var
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+Loading required package: lpSolve
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+Loading required package: lpSolve
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+Loading required package: lpSolve
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+
+Attaching package: ‘gdata’
+
+Loading required package: lpSolve
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Loading required package: lpSolve
+
+Attaching package: ‘gdata’
+
+The following object is masked from ‘package:stats’:
+
+    nobs
+
+The following object is masked from ‘package:utils’:
+
+    object.size
+
+The following object is masked from ‘package:base’:
+
+    startsWith
+
+Loading required package: lpSolve
+Time difference of 5.348027 mins
+> 
+> 
+> 
+> 
+> proc.time()
+     user    system   elapsed 
+16623.126    61.589   898.083 

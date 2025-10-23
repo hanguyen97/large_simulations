@@ -2,8 +2,8 @@
 #---------------- 1. Paths  ----------------#
 #-------------------------------------------#
 
-setwd("~/Documents/Cornell/Projects/FC_SC/Code/Data_analysis/fs86_hpf_tsclean_993subj/")
-in_path <- "~/Documents/Cornell/Projects/FC_SC/Code/Data_analysis/fs86_hpf_tsclean_993subj/"
+setwd("")
+in_path <- ""
 
 r <- 86
 files <- list.files(path = in_path, pattern = "\\.RData$")
